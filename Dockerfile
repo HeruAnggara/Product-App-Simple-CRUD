@@ -1,17 +1,51 @@
-FROM rendertemplates/php:8.2-fpm-nginx
+# Base image: Nginx + PHP-FPM pre-configured untuk Laravel
+FROM richarvey/nginx-php-fpm:latest
 
-# Install dependencies
-COPY composer.* ./
-RUN composer install --no-dev --optimize-autoloader
+# Copy source code
+COPY . .
 
-# Copy source
-COPY . ./
+# Image config (dari richarvey image docs)
+ENV SKIP_COMPOSER 1  # Skip Composer jika sudah di-build
+ENV WEBROOT /var/www/html/public
+ENV PHP_ERRORS_STDERR 1
+ENV RUN_SCRIPTS 1
+ENV REAL_IP_HEADER 1
 
-# Build frontend assets
-RUN npm ci && npm run build
+# Laravel config untuk production
+ENV APP_ENV production
+ENV APP_DEBUG false
+ENV LOG_CHANNEL stderr
 
-# Run migrations
+# Allow Composer run as root
+ENV COMPOSER_ALLOW_SUPERUSER 1
+
+# Install Composer dependencies (non-dev untuk production)
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Install Node.js dependencies dan build frontend assets (Inertia React + Tailwind)
+RUN curl -sL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm ci --only=production \
+    && npm run build \
+    && apt-get purge -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Permissions untuk Laravel storage dan bootstrap cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Run Laravel migrations (force untuk production)
 RUN php artisan migrate --force
 
-# Generate app key if not exists
-RUN php artisan key:generate --force
+# Generate app key jika belum ada
+RUN php artisan key:generate --no-interaction --force
+
+# Cache config, routes, views untuk performa
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
+
+# Expose port (Render akan handle $PORT)
+EXPOSE 80
+
+# Start script dari image (Nginx + PHP-FPM)
+CMD ["/start.sh"]
