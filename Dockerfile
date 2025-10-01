@@ -23,12 +23,11 @@ ENV COMPOSER_ALLOW_SUPERUSER 1
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Install Node.js dependencies dan build frontend assets (Inertia React + Tailwind)
-RUN curl -sL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && npm ci --only=production \
-    && npm run build \
-    && apt-get purge -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+RUN curl -sL https://deb.nodesource.com/setup_22.x | bash -
+RUN apt-get update && apt-get install -y nodejs
+RUN npm ci --only=production
+RUN npm run build
+RUN apt-get purge -y nodejs && rm -rf /var/lib/apt/lists/*
 
 # Permissions untuk Laravel storage dan bootstrap cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
