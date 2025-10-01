@@ -42,6 +42,8 @@ ENV COMPOSER_ALLOW_SUPERUSER 1
 # Salin sisa kode PHP/Laravel
 COPY . /var/www/html/
 
+COPY .env.example /var/www/html/.env
+
 # Hapus folder node_modules yang mungkin ada jika Anda menyalin dari root context
 RUN rm -rf /var/www/html/node_modules
 
