@@ -1,11 +1,31 @@
-# Base image: Nginx + PHP-FPM pre-configured untuk Laravel
-FROM richarvey/nginx-php-fpm:latest
+# ----------------------------------------------------------------------
+# STAGE 1: BUILD - Untuk menginstal Node.js dan mengompilasi aset frontend (npm run build)
+# ----------------------------------------------------------------------
+FROM node:20-alpine AS builder
 
-# Copy source code
+# Atur direktori kerja
+WORKDIR /app
+
+# Salin package.json dan package-lock.json untuk memanfaatkan cache Docker Layer
+COPY package.json package-lock.json ./
+
+# Instal dependensi Node.js, termasuk devDependencies (perlu untuk build)
+RUN npm ci
+
+# Salin sisa kode (termasuk kode React/Inertia)
 COPY . .
 
-# Image config (dari richarvey image docs)
-ENV SKIP_COMPOSER 1  # Skip Composer jika sudah di-build
+# Jalankan build frontend menggunakan Vite
+RUN npm run build
+
+
+# ----------------------------------------------------------------------
+# STAGE 2: RUNTIME - Lingkungan Produksi (PHP-FPM & Nginx)
+# ----------------------------------------------------------------------
+# Base image: Nginx + PHP-FPM pre-configured (Menggunakan base image yang sama agar kompatibel)
+FROM richarvey/nginx-php-fpm:latest
+
+# Atur variabel lingkungan dari base image
 ENV WEBROOT /var/www/html/public
 ENV PHP_ERRORS_STDERR 1
 ENV RUN_SCRIPTS 1
@@ -19,31 +39,31 @@ ENV LOG_CHANNEL stderr
 # Allow Composer run as root
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-# Install Composer dependencies (non-dev untuk production)
+# Salin sisa kode PHP/Laravel
+COPY . /var/www/html/
+
+# Hapus folder node_modules yang mungkin ada jika Anda menyalin dari root context
+RUN rm -rf /var/www/html/node_modules
+
+# Salin aset frontend yang sudah di-build dari 'builder' stage
+# Aset Vite/Inertia (manifest.json, css, js) berada di public/build
+COPY --from=builder /app/public/build /var/www/html/public/build
+
+# Instal Composer dependencies (non-dev untuk produksi)
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Install Node.js dependencies dan build frontend assets (Inertia React + Tailwind)
-RUN curl -sL https://deb.nodesource.com/setup_22.x | bash -
-RUN apt-get update && apt-get install -y nodejs
-RUN npm install
-RUN npm run build
-RUN apt-get purge -y nodejs && rm -rf /var/lib/apt/lists/*
-
 # Permissions untuk Laravel storage dan bootstrap cache
+# Pastikan jalur sudah benar. Biasanya /var/www/html adalah root proyek.
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Run Laravel migrations (force untuk production)
-RUN php artisan migrate --force
-
-# Generate app key jika belum ada
-RUN php artisan key:generate --no-interaction --force
-
-# Cache config, routes, views untuk performa
+# Jalankan command Artisan (Config, Cache, Migrate)
 RUN php artisan config:cache \
     && php artisan route:cache \
-    && php artisan view:cache
+    && php artisan view:cache \
+    && php artisan key:generate --no-interaction --force \
+    && php artisan migrate --force
 
-# Expose port (Render akan handle $PORT)
+# Expose port
 EXPOSE 80
 
 # Start script dari image (Nginx + PHP-FPM)
