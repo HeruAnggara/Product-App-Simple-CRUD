@@ -6,9 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return redirect()->route('products.index');
-});
+Route::get('/', [ProductController::class, 'index']);
 
 Route::get('/dashboard', function () {
     return redirect()->route('products.index');

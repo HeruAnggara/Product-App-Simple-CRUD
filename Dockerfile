@@ -4,17 +4,9 @@
 FROM node:20-alpine AS builder
 
 WORKDIR /app
-
-# Salin package.json dan package-lock.json untuk cache
 COPY package.json package-lock.json ./
-
-# Instal dependensi Node.js, termasuk devDependencies untuk build
 RUN npm ci
-
-# Salin sisa kode (termasuk kode React/Inertia)
 COPY . .
-
-# Jalankan build frontend menggunakan Vite
 RUN npm run build
 
 # ----------------------------------------------------------------------
@@ -32,11 +24,16 @@ ENV REAL_IP_HEADER 1
 ENV APP_ENV production
 ENV APP_DEBUG false
 ENV LOG_CHANNEL stderr
+# Tambahkan APP_KEY placeholder untuk memastikan Artisan dapat boot
+# KUNCI ASLI HARUS DIATUR SAAT CONTAINER RUNTIME (misal: docker-compose/K8s)
+ENV APP_KEY base64:tHXrep0Ku5Efrf+1V4eO8ylro7+zzRRHN6rpc3zCUBU=
+
+ENV SESSION_DRIVER file
 
 # Allow Composer run as root
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-# Salin kode PHP/Laravel (tanpa node_modules yang sudah tidak diperlukan)
+# Salin kode PHP/Laravel secara eksplisit
 COPY . /var/www/html/
 
 # Hapus node_modules jika ada (dari copy awal)
@@ -46,10 +43,14 @@ RUN rm -rf /var/www/html/node_modules
 COPY --from=builder /app/public/build /var/www/html/public/build
 
 # Instal Composer dependencies (non-dev untuk produksi)
+# Jalankan ini sebelum set permissions untuk menghindari masalah ownership saat composer membuat vendor
 RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
 
-# Permissions untuk Laravel storage dan bootstrap cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# PENTING: Set Permissions sebelum menjalankan perintah Artisan lainnya
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R ug+rwx /var/www/html/storage /var/www/html/bootstrap/cache
+
+# HAPUS: RUN php artisan key:generate --no-interaction --force (Karena APP_KEY harus diset saat runtime)
 
 # Jalankan migrasi dan cache konfigurasi
 RUN php artisan migrate --force
