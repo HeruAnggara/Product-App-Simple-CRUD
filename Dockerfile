@@ -25,7 +25,7 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 # Install Node.js dependencies dan build frontend assets (Inertia React + Tailwind)
 RUN curl -sL https://deb.nodesource.com/setup_22.x | bash -
 RUN apt-get update && apt-get install -y nodejs
-RUN npm ci --only=production
+RUN npm install
 RUN npm run build
 RUN apt-get purge -y nodejs && rm -rf /var/lib/apt/lists/*
 
