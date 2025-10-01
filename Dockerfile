@@ -58,13 +58,6 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 # Pastikan jalur sudah benar. Biasanya /var/www/html adalah root proyek.
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Jalankan command Artisan (Config, Cache, Migrate)
-RUN php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache \
-    && php artisan key:generate --no-interaction --force \
-    && php artisan migrate --force
-
 # Expose port
 EXPOSE 80
 
