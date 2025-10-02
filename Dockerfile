@@ -27,11 +27,22 @@ ENV LOG_CHANNEL stderr
 # Tambahkan APP_KEY placeholder untuk memastikan Artisan dapat boot
 # KUNCI ASLI HARUS DIATUR SAAT CONTAINER RUNTIME (misal: docker-compose/K8s)
 ENV APP_KEY base64:tHXrep0Ku5Efrf+1V4eO8ylro7+zzRRHN6rpc3zCUBU=
+ENV DB_CONNECTION pgsql
 
 ENV SESSION_DRIVER file
 
 # Allow Composer run as root
 ENV COMPOSER_ALLOW_SUPERUSER 1
+
+RUN rm -rf /etc/nginx/sites-available/default.conf
+
+COPY default.conf /etc/nginx/sites-available/default.conf
+
+COPY default.conf /etc/nginx/sites-available/laravel.conf
+
+# PENTING: Hapus default config yang bermasalah dan buat symlink
+# Ini memaksa Nginx untuk memuat konfigurasi yang diperbaiki
+RUN  nginx -t
 
 # Salin kode PHP/Laravel secara eksplisit
 COPY . /var/www/html/
@@ -53,8 +64,7 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # HAPUS: RUN php artisan key:generate --no-interaction --force (Karena APP_KEY harus diset saat runtime)
 
 # Jalankan migrasi dan cache konfigurasi
-RUN php artisan migrate --force
-RUN php artisan config:cache && php artisan route:cache && php artisan view:cache
+RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
 
 # Expose port
 EXPOSE 80
