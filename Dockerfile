@@ -64,7 +64,7 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # HAPUS: RUN php artisan key:generate --no-interaction --force (Karena APP_KEY harus diset saat runtime)
 
 # Jalankan migrasi dan cache konfigurasi
-RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
+RUN php artisan cache:clear && php artisan config:clear && php artisan route:clear && php artisan view:clear
 
 # Expose port
 EXPOSE 80
