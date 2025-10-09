@@ -29,6 +29,8 @@ ENV LOG_CHANNEL stderr
 ENV APP_KEY base64:tHXrep0Ku5Efrf+1V4eO8ylro7+zzRRHN6rpc3zCUBU=
 ENV DB_CONNECTION pgsql
 
+ENV CACHE_STORE file
+
 ENV SESSION_DRIVER file
 
 # Allow Composer run as root
